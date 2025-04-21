@@ -15,6 +15,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import androidx.core.app.ActivityCompat;
@@ -74,11 +75,20 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
         setBtnListener();
     }
 
+
     private void checkPremission() {
         if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED
                 || checkSelfPermission(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED) == PackageManager.PERMISSION_DENIED
         ) {
-            requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED}, 0);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES}, 0);
+
+            }
+
+            if (Build.VERSION.SDK_INT >= 34) {
+                requestPermissions(new String[]{Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED}, 0);
+            }
+
         }
     }
 
@@ -111,7 +121,8 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
         btnAddReport.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (location == null || location.isEmpty()) {
+                location = locationEditText.getText().toString();
+                if (location.isEmpty()) {
                     Toast.makeText(MainActivity.this, "請填入地址或掃描QRcode", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -129,6 +140,16 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
                 reportItems.add(reportItem);
 
                 Toast.makeText(MainActivity.this, "通報成功", Toast.LENGTH_SHORT).show();
+
+                locationSpinner.setSelection(0);
+                typeSpinner.setSelection(0);
+                locationEditText.setText("");
+                discriptionEditText.setText("");
+                image1.setImageResource(R.drawable.baseline_image_not_supported_24);
+                image2.setImageResource(R.drawable.baseline_image_not_supported_24);
+                image3.setImageResource(R.drawable.baseline_image_not_supported_24);
+                location = null;
+                zXingScannerView.setVisibility(View.INVISIBLE);
             }
         });
 
@@ -194,6 +215,12 @@ public class MainActivity extends AppCompatActivity implements ZXingScannerView.
 
     @Override
     public void handleResult(Result result) {
+        if (result == null || result.getText() == null || result.getText().isEmpty() || result.getText().length() < 5 || !result.getText().contains("市")){
+            Toast.makeText(this, "掃描錯誤", Toast.LENGTH_SHORT).show();
+            openQRCamera();
+            return;
+        }
+
         location = result.getText();
         Toast.makeText(this, result.getText(), Toast.LENGTH_SHORT).show();
         String city = result.getText().substring(3, result.getText().indexOf("市") + 1);
